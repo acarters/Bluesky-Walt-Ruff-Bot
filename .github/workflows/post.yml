@@ -1,3 +1,4 @@
+name: "Post to Bluesky"
 on:
   schedule:
     - cron: "*/5 * * * *"
