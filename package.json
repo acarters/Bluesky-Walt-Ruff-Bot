@@ -35,6 +35,8 @@
   },
   "dependencies": {
     "@atproto/api": "^0.2.11",
+    "node-html-parser": "^6.1.10",
+    "tsl-mastodon-api": "^0.4.1",
     "zod": "^3.21.4"
   }
 }
