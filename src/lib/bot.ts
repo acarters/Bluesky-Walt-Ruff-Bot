@@ -34,16 +34,32 @@ export default class Bot {
       | (Partial<AppBskyFeedPost.Record> &
           Omit<AppBskyFeedPost.Record, "createdAt">)
   ) {
-    if (typeof text === "string") {
-      const richText = new RichText({ text });
-      await richText.detectFacets(this.#agent);
-      const record = {
-        text: richText.text,
-        facets: richText.facets,
-      };
-      return this.#agent.post(record);
-    } else {
-      return this.#agent.post(text);
+
+    var waltsFeed = await this.#agent.getAuthorFeed({actor: "notwaltruff.bsky.social", limit: 1,});
+    var waltsReducedFeed = waltsFeed["data"]["feed"][0]["post"]["record"];
+    var waltArr = Object.entries(waltsReducedFeed);
+    var lastPost = waltArr[0][1];
+    console.log(lastPost);
+    console.log(text);
+    console.log(lastPost === text)
+
+    if (lastPost === text)
+    {
+      return "37";
+    }
+    else
+    {
+      if (typeof text === "string") {
+        const richText = new RichText({ text });
+        await richText.detectFacets(this.#agent);
+        const record = {
+          text: richText.text,
+          facets: richText.facets,
+        };
+        return this.#agent.post(record);
+      } else {
+        return this.#agent.post(text);
+      }
     }
   }
 
