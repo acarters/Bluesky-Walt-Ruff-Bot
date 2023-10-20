@@ -1,22 +1,27 @@
 import * as Mastodon from 'tsl-mastodon-api';
+const mastodon = new Mastodon.API({access_token: 'PRZhmwmS5fpkXo442UE8SGHv8TL7XOiqjhpOh49heb0', api_url: 'https://mastodon.social/api/v1/'}); // access the Mastodon API using the access token.
 
 
-const mastodon = new Mastodon.API({access_token: 'PRZhmwmS5fpkXo442UE8SGHv8TL7XOiqjhpOh49heb0', api_url: 'https://mastodon.social/api/v1/'});
+/*
+	getPostText():
 
-export default async function getPostText() {
-//var account = await mastodon.getAccount();
+	This function performs a Mastodon API GET request to get the most recent Tweet created by Walt Ruff. Using this, the function formats this string down into the desired plaintext of a Bluesky post, stripping out all of the unnecessary HTML formatting and handling formatting in a format compatible with Bluesky.
 
-var account = await mastodon.getStatuses("109764698354053424", {'limit':1});
-var string = JSON.stringify(account);
-var jsonObj = JSON.parse(string)["json"];
-var string2 = JSON.stringify(jsonObj);
-var parse2 = JSON.parse(string2);
-var jsonObj2 = parse2[0]["content"];
-var string3 = JSON.stringify(jsonObj2);
-var reg = new RegExp("<(:?[^>]+)>", "g");
-var pReg = new RegExp("</p><p>", "g");
-var brReg = new RegExp("<br>", "g");
-var split = string3.replace(pReg, "\n\n").replace(brReg, "\n").replace(reg, ""); // Use the regex to remove the HTML formatting from the mastodon 
-split = split.slice(1,-1); // Remove the quotation marks.
-  return split;
+	args: None
+
+	returns: A string representing the desired text of the Bluesky post we want to create.
+*/
+export default async function getPostText() 
+{
+	var awaitTweet = await mastodon.getStatuses("109764698354053424", {'limit':1}); //Use the Mastodon API to get 1 most recent tweet from Walt Ruff's account.
+	var string = JSON.stringify(awaitTweet); // Convert the tweet into a JSON string.
+	var contentJSON = JSON.parse(string)["json"][0]["content"]; // Convert the JSON string back to a JSON object. Kinda silly, but it doesn't work otherwise. Then go through all the array settings to get just the content of the post. 
+	var contentString = JSON.stringify(contentJSON); // Convert the content of the post into a JSON string.
+
+	var reg = new RegExp("<(:?[^>]+)>", "g"); // A general regex for HTML. Used to get the plaintext value of the mastodon post without tag notation.
+	var pReg = new RegExp("</p><p>", "g"); // A regex to deal with <p></p>. This should create a new section in the text, which we do via 2 line breaks.
+	var brReg = new RegExp("<br>", "g"); // A regex to deal with <br>. This should go to the next line, which we do via a line break. 
+	var split = contentString.replace(pReg, "\n\n").replace(brReg, "\n").replace(reg, ""); // First use the <p> and <br> regex to apply appropriate spacing. Then use the general regex to remove the HTML formatting from the mastodon post. 
+	split = split.slice(1,-1); // Remove the quotation marks.
+	return split; // Return the formatted string of the Walt Ruff tweet text.
 }
