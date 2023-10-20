@@ -35,15 +35,25 @@ export default class Bot {
           Omit<AppBskyFeedPost.Record, "createdAt">)
   ) {
 
-    var waltsFeed = await this.#agent.getAuthorFeed({actor: "notwaltruff.bsky.social", limit: 1,});
-    var waltsReducedFeed = waltsFeed["data"]["feed"][0]["post"]["record"];
-    var waltArr = Object.entries(waltsReducedFeed);
-    var lastPost = waltArr[0][1];
-    console.log(lastPost);
-    console.log(text);
-    console.log(lastPost === text)
+    var bskyFeedAwait = await this.#agent.getAuthorFeed({actor: "notwaltruff.bsky.social", limit: 5,});
+    var bskyFeed = bskyFeedAwait["data"]["feed"];
+    console.log('bskyFeed: %s\n', bskyFeed);
+    var stringArr = [];
+  for (let i = 0; i < 5; i++) 
+  {
+    console.log(i);
+    var bsky0 = bskyFeed[i];
+    var bsky = bsky0["post"]["record"];
+    var bskyArr = Object.entries(bsky);
+    console.log(bskyArr[0][1]);
+    var bskyText = bskyArr[0][1];
+    stringArr.push(bskyText);
+  }
+  console.log('bot.ts string array: %s\n', stringArr);
 
-    if (lastPost === text)
+    console.log(text === stringArr[0])
+
+    if (text === stringArr[0])
     {
       return "37";
     }
@@ -72,10 +82,14 @@ export default class Bot {
       : this.defaultOptions;
     const bot = new Bot(service);
     await bot.login(bskyAccount);
-    const text = await getPostText();
+    const textAwait = await getPostText();
+    const textArr = textAwait.split("\/");
+
+
+    const text0 = textArr[0];
     if (!dryRun) {
-      await bot.post(text);
+      await bot.post(text0);
     }
-    return text;
+    return text0;
   }
 }
