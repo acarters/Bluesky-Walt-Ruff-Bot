@@ -46,7 +46,7 @@ export default class Bot {
     var bsky = bsky0["post"]["record"];
     var bskyArr = Object.entries(bsky);
     var bskyText = bskyArr[0][1];
-    if (text === bskyText)
+    if (text === bskyText || text === "")
     {
       console.log("failed on %d\n", i);
       return "37";
