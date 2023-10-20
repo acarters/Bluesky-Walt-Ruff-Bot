@@ -35,11 +35,11 @@ export default class Bot {
           Omit<AppBskyFeedPost.Record, "createdAt">)
   ) {
 
-    var bskyFeedAwait = await this.#agent.getAuthorFeed({actor: "notwaltruff.bsky.social", limit: 8,});
+    var bskyFeedAwait = await this.#agent.getAuthorFeed({actor: "notwaltruff.bsky.social", limit: 12,});
     var bskyFeed = bskyFeedAwait["data"]["feed"];
     console.log('bskyFeed: %s\n', bskyFeed);
     var stringArr = [];
-  for (let i = 0; i < 8; i++) 
+  for (let i = 0; i < 10; i++) 
   {
     console.log(i);
     var bsky0 = bskyFeed[i];
@@ -86,7 +86,7 @@ export default class Bot {
     console.log('Mastodon string array: %s\n', mastodonArr);
 
     if (!dryRun) {
-      for (let i = 8 - 1; i >= 0; i--) 
+      for (let i = 10 - 1; i >= 0; i--) 
       {
         await bot.post(mastodonArr[i]);
       }
