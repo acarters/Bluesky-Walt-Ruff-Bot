@@ -35,32 +35,31 @@ export default class Bot {
           Omit<AppBskyFeedPost.Record, "createdAt">)
   ) {
 
-    var bskyFeedAwait = await this.#agent.getAuthorFeed({actor: "notwaltruff.bsky.social", limit: 5,});
+    var bskyFeedAwait = await this.#agent.getAuthorFeed({actor: "notwaltruff.bsky.social", limit: 8,});
     var bskyFeed = bskyFeedAwait["data"]["feed"];
     console.log('bskyFeed: %s\n', bskyFeed);
     var stringArr = [];
-  for (let i = 0; i < 5; i++) 
+  for (let i = 0; i < 8; i++) 
   {
     console.log(i);
     var bsky0 = bskyFeed[i];
     var bsky = bsky0["post"]["record"];
     var bskyArr = Object.entries(bsky);
-    console.log(bskyArr[0][1]);
     var bskyText = bskyArr[0][1];
+    if (text === bskyText)
+    {
+      console.log("failed on %d\n", i);
+      return "37";
+    }
     stringArr.push(bskyText);
   }
-  console.log('bot.ts string array: %s\n', stringArr);
+  console.log('Bluesky string array: %s\n', stringArr);
 
     console.log(text === stringArr[0])
 
-    if (text === stringArr[0])
-    {
-      return "37";
-    }
-    else
-    {
+
       if (typeof text === "string") {
-        const richText = new RichText({ text });
+        const richText = new RichText({text});
         await richText.detectFacets(this.#agent);
         const record = {
           text: richText.text,
@@ -70,7 +69,6 @@ export default class Bot {
       } else {
         return this.#agent.post(text);
       }
-    }
   }
 
   static async run(
@@ -82,14 +80,17 @@ export default class Bot {
       : this.defaultOptions;
     const bot = new Bot(service);
     await bot.login(bskyAccount);
-    const textAwait = await getPostText();
-    const textArr = textAwait.split("\/");
+    const mastodonAwait = await getPostText();
+    const mastodonArr = mastodonAwait.split("\/");
 
+    console.log('Mastodon string array: %s\n', mastodonArr);
 
-    const text0 = textArr[0];
     if (!dryRun) {
-      await bot.post(text0);
+      for (let i = 8 - 1; i >= 0; i--) 
+      {
+        await bot.post(mastodonArr[i]);
+      }
     }
-    return text0;
+    return mastodonArr[0];
   }
 }
