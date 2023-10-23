@@ -1,123 +1,30 @@
-# Build your own Bluesky bot 🦋
+# Walt Ruff Bluesky Bot
 
-This is a template repo for building [Bluesky](https://bsky.app/) bots that post on their own schedule. It uses [TypeScript](https://www.typescriptlang.org/) to build the bot and [GitHub Actions](https://docs.github.com/en/actions) to schedule the posts.
+This is a bot that automatically reposts the Twitter posts of Carolina Hurricanes reporter, Walt Ruff to [Bluesky](https://bsky.app/). Because the Twitter API now costs money to use, this bot instead collects data from the Walt Ruff Mastodon API created by sportsbots.xyz. It uses [TypeScript](https://www.typescriptlang.org/) to build the bot and [GitHub Actions](https://docs.github.com/en/actions) to schedule the posts. Although this repository is specifically for Walt Ruff, this codebase could be leveraged to produce bots to repost other Mastodon profiles to Bluesky without too much additional effort. I plan to do this for @Canes in the future, once the featureset is sufficiently dense. 
 
-* [How to use](#how-to-use)
-  * [Things you will need](#things-you-will-need)
-    * [A Bluesky account](#a-bluesky-account)
-    * [Node.js](#nodejs)
-  * [Create a new repository from this template](#create-a-new-repository-from-this-template)
-  * [Running locally to test](#running-locally-to-test)
-  * [Create your own posts](#create-your-own-posts)
-  * [Deploy](#deploy)
-    * [Schedule](#schedule)
-    * [Environment variables](#environment-variables)
-  * [Set it live](#set-it-live)
+This bot used the [Bluesky Bot Template](https://github.com/philnash/bsky-bot) created by Phil Nash as a beginning codebase to work from. Thanks, Phil!
+
+* [Current Feature Set](#current-feature-set)
+  * [Schedule](#schedule)
+  * [Reposting](#reposting)
+  * [Iterative Post Clustering](#iterative-post-clustering)
+  * [Parsing Long Posts](#parsing-long-posts)
+* [Things To Do](#things-to-do)
+* 
 
 
-## How to use
+## Current Feature Set
 
-### Things you will need
+### Schedule
+This bot uses the GitHub Actions interface to automatically run the code. It has a cron specified to post every 5 minutes, but in reality it is considerably slower in most cases. Average time taken between executions seems to be around 10-15 minutes during normal times, and upwards of 25-45 minutes during busy times.
 
-#### A Bluesky account
+### Reposting
+This bot uses the Mastodon Walt Ruff API to collect tweets created by Walt Ruff. The Mastodon API returns content values in HTML, so considerable regex formatting is needed in order to get the content into a plaintext value that can be used by the Bluesky API. This Mastodon API is flawed, leading some posts to not be collected and given to my bot. This is not really a workable problem for me, as my code sees the Mastodon API as a black box, and I am essentially forced to play telephone with the posts through a middleman unless I am willing to spend the money to pay Elon Musk for Twitter API. Instead, I cannot guarantee that this bot will repost every post made by Walt Ruff on Twitter. Instead, I guarantee that this bot will repost all posts collected by the Mastodon API. 
 
-To use this repo you will need a [Bluesky account](https://bsky.app/). Currently Bluesky is invite only and you can [sign up for an invite here](https://bsky.app/).
+### Iterative Post Clustering 
+Because the execution occurs in inconsistent intervals and it is possible that Walt Ruff posts large amounts of posts at a time, this API takes a iterative approach to posting. When executed, the bot collects a constant number of posts already made by the bot, and a constant number of posts from the Mastodon API. The bot checks each Mastodon post, ensuring that they do not match with any of the posts already posted. If the posts match, the post is discarded to avoid duplicates. If the post does not match, this post has not been posted by the bot yet, and the bot posts it. This iterative process goes in reverse sequential order, ensuring that the bot posts old posts before trying to post new posts, ensuring that even during long wait times between executions, the bot does not miss a post.
 
-Once you have an account for your bot, you will need to know your bot's handle and password (I recommend using an App Password, which you can create under your account's settings).
+### Parsing Long Posts
+When Elon Musk purchased twitter, he allowed Twitter Blue accounts to post ridiculously long posts. Walt Ruff is a Twitter Blue member, and sometimes uses this feature. However, Bluesky still has a 300 character limit on posts. To remedy this, the Walt Ruff parses posts longer than 300 characters into multiple smaller posts. These posts are 295 characters long, and include a 5 character "[.../...]" counter to allow a reader to know that a post is part of a larger post. In the future, I would prefer these chunked posts to be replies to one another. 
 
-#### Node.js
-
-To run this bot locally on your own machine you will need [Node.js](https://nodejs.org/en) version 18.16.0.
-
-### Create a new repository from this template
-
-Create your own project by clicking "Use this template" on GitHub and then "Create a new repository". Select an owner and give your new repository a name and an optional description. Then click "Create repository from template".
-
-Clone your new repository to your own machine.
-
-```sh
-git clone git@github.com:${YOUR_USERNAME}/${YOUR_REPO_NAME}.git
-cd ${YOUR_REPO_NAME}
-```
-
-### Running locally to test
-
-To run the bot locally you will need to install the dependencies:
-
-```sh
-npm install
-```
-
-Copy the `.env.example` file to `.env`.
-
-```sh
-cp .env.example .env
-```
-
-Fill in `.env` with your Bluesky handle and password.
-
-Build the project with:
-
-```sh
-npm run build
-```
-
-You can now run the bot locally with the command:
-
-```sh
-npm run dev
-```
-
-This will use your credentials to connect to Bluesky, but it *won't actually create a post yet*. If your credentials are correct, you should see the following printed to your terminal:
-
-```
-[TIMESTAMP] Posted: "Hello from the Bluesky API"
-```
-
-To have the bot create a post to your Bluesky account, in `index.ts` change line 4 to remove the `{ dryRun: true }` object:
-
-```diff
-- const text = await Bot.run(getPostText, { dryRun: true });
-+ const text = await Bot.run(getPostText);
-```
-
-Build the project again, then run the command to create a post to actually create the post with the API:
-
-```sh
-npm run build
-npm run dev
-```
-
-### Create your own posts
-
-Currently the bot calls on the function [`getPostText`](./src/lib/getPostText.ts) to get the text that it should post. This function returns the text "Hello from the Bluesky API" every time.
-
-To create your own posts you need to provide your own implementation of `getPostText`. You can do anything you want to generate posts, the `getPostText` function just needs to return a string or a Promise that resolves to a string.
-
-### Deploy
-
-Once you have built your bot, the only thing left to do is to choose the schedule and set up the environment variables in GitHub Actions.
-
-#### Schedule
-
-The schedule is controlled by the GitHub Actions workflow in [./.github/workflows/post.yml](./.github/workflows/post.yml). The [schedule trigger](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule) uses cron syntax to schedule when the workflow runs and your bot posts. [Crontab Guru](https://crontab.guru/) is a good way to visualise it.
-
-For example, the following YAML will schedule your bot to post at 5:30 and 17:30 every day.
-
-```yml
-on:
-  schedule:
-    - cron: "30 5,17 * * *"
-```
-
-Be warned that many GitHub Actions jobs are scheduled to happen on the hour, so that is a busy time and may see your workflow run later than expected or be dropped entirely.
-
-#### Environment variables
-
-In your repo's settings, under *Secrets and variables* > *Actions* you need to enter two Secrets to match your `.env` file. One secret should be called `BSKY_HANDLE` and contain your Bluesky username, and the other should be called `BSKY_PASSWORD` and contain your App Password that you generated for the bot account.
-
-### Set it live
-
-Once the schedule is set up and your Environment variables configured, push your changes to your repo and wait for the schedule to trigger the workflow. Your bot will start publishing posts based on your code.
-
-If you have any issues with that, please [raise an issue in this repo](https://github.com/philnash/bsky-bot/issues) or send me a message on Bluesky [@philna.sh](https://staging.bsky.app/profile/philna.sh).
+## Things To Do
