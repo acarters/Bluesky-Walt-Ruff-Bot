@@ -31,7 +31,7 @@ export default class Bot {
 
     args:
       service: An AtpAgentOpts value that specifies what Bluesky service to use.
-      
+
     returns: void
   */
   constructor(service: AtpAgentOpts["service"]) 
@@ -171,18 +171,36 @@ export default class Bot {
         }
         else // Complicated case where a post is longer than 300 characters, longer than a valid Bluesky post. 
         {
-          var postLen = mastodonArr[i].length; // Get the post's length. This will be > 300. 
-          var numberOfPosts = ~~(postLen / 294) + 1; // Calculate the number of posts needed, by int dividing the post length by 294. Add 1 to deal with remainder.
-          for (let j = 0; j < numberOfPosts; j++) // Iterate over the number of posts needed. I recognize that this is O(n^2), but the n value will always be low so it's not a big issue.
+
+          var wordArr = mastodonArr[i].split(" "); // Turn the string into an array of words parsed by spaces.
+          var chunkLen = 0; // Initialize the length of a chunk to 0.
+          var chunkArr = []; // Initialize the array storing the words contained in the chunk to be empty.
+          var threadArr = []; // Initialize the array storing the chunk strings to be empty.
+          var chunkStr = ""; // Initialize the chunk string to be empty.
+          while (wordArr.length != 0) // Loop while there are still words in the array to chunk.
           {
-            var partialStr = mastodonArr[i].slice((j * 294), (j * 294 + 294)) + " [" + (j + 1) + "/" + numberOfPosts + "]"; // Create this new chunked post by taking the next 294 bits. Concatenate them with a "[j+1/numberOfPosts]" construction to tell the user what post they are on, and how many posts in the thread are left.
-            if (j == 0) // If we are on the first iteration
+            if(chunkLen + wordArr[0].length <= 294) // If adding the next word in the array to the chunk will not cause it to surpass the max length:
             {
-              await bot.post(false, partialStr); // If j == 0, we have yet to post anything. Therefore, we want this to be a root value rather than a reply. Run bot.post on the partial text value with isReply set to false.
+              chunkLen += wordArr[0].length + 1; // Increase the chunk length by the length of the word being added.  
+              chunkArr.push(wordArr.shift()); // Add the new word to the end of the chunk array, while also removing it from the front of the word array.
             }
-            else // If we are not on the first iteration
+            else  // If the max length is surpassed by adding the next word to the chunk:
             {
-              await bot.post(true, partialStr); // If j != 0, we have already posted our root post. Therefore, we want this to be a reply to that root post. Run bot.post on the partial text value with isReply set to true.
+              chunkStr = chunkArr.join(" "); // Turn the chunk into a string by delimiting the words with spaces. 
+              chunkArr = []; // Empty the chunk array.
+              chunkLen = 0; // Reset the chunk length to 0.
+              threadArr.push(chunkStr); // Add the chunk string to the thread array. 
+            }
+          }
+          chunkStr = chunkArr.join(" "); // Turn the last chunk into a string by delimiting the words with spaces.
+          threadArr.push(chunkStr); // Add the last chunk string to the thread array.
+          var isReply = false; // Create a boolean value to determine if we want to post a root post or a reply. Start with a root post. 
+          for (var j = 0; j < threadArr.length; j++) // Iterate over all of the chunk strings contained in the thread array.
+          {
+            await bot.post(isReply, threadArr[j] + " [" + (j+1) + "/" + threadArr.length + "]"); // Post string j in the thread array. Use the boolean variable to determine whether this is a root post or a reply, add a post counter on the end to make the thread easier to read. 
+            if (isReply == false) // If this post was posted as a root, meaning that this is the first iteration:
+            {
+              isReply = true; // Set the boolean value to post as replies for the remaining iterations.
             }
           }
         }
