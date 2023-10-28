@@ -102,8 +102,12 @@ export default class Bot {
       var bskyPost = bskyFeed[i]; // Get the post i from the collected Bluesky feed.
       var bskyRecord = bskyPost["post"]["record"]; // Filter post i down so we are only considering the record.
       var bskyText = Object.entries(bskyRecord)[0][1]; // Accessing the values from here is weird, so I put them all in an array and access the one corresponding to text (0,1).
+     //console.log(bskyText);
+
+      console.log("text: " + text + ", bskyText: " + bskyText);
       if (text === bskyText || text === "") // Check if the text we are trying to post has already been posted in the last postNum posts, or is empty. Might change empty conditional if I get images working.  
       {
+        console.log("failed on case " + i);
         return "37"; // Output an arbitrary value that can be treated as a fail code. Could be anything, I picked 37 because I like the number 37. 
       }
     }
@@ -161,6 +165,7 @@ export default class Bot {
     await bot.login(bskyAccount); // Log the bot into the specified Bluesky account determined by the bskyAccount value.
     const mastodonAwait = await getPostText(); // Get the desired number of recent Mastodon posts from the specified user in getPostText.
     var mastodonArr = mastodonAwait.split("\/"); // mastodonAwait is a string value that is subdivided by "\/". Turn it into an array of values that we can reason on individually. Clunky implementation but it works without changing getPostText's signature too much. 
+    //console.log(mastodonArr);
     if (!dryRun) // Make sure that we don't wanna run the bot without posting. Tbh, I think I might have broken this feature through my changes to the source code. May need to reimplement dry run as a working option when I generalize the code for other purposes.
     { 
       for (let i = mastodonArr.length - 1; i >= 0; i--) // Iterate over the recent Mastodon posts in reverse sequential order. -1 may not be necessary, do some more testing.
@@ -171,7 +176,6 @@ export default class Bot {
         }
         else // Complicated case where a post is longer than 300 characters, longer than a valid Bluesky post. 
         {
-
           var wordArr = mastodonArr[i].split(" "); // Turn the string into an array of words parsed by spaces.
           var chunkLen = 0; // Initialize the length of a chunk to 0.
           var chunkArr = []; // Initialize the array storing the words contained in the chunk to be empty.
