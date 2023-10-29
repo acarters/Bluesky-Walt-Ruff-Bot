@@ -75,8 +75,8 @@ export default class Bot {
           Omit<AppBskyFeedPost.Record, "createdAt">)
   ) 
   {
-    const postNum = 10; // Specify the number of recent posts to compare from the logged in user's feed.
-    var bskyFeedAwait = await this.#agent.getAuthorFeed({actor: "notwaltruff.bsky.social", limit: postNum + 2,}); // Get a defined number + 2 of most recent posts from the logged in user's feed.
+    var postNum = 13; // Specify the number of recent posts to compare from the logged in user's feed.
+    var bskyFeedAwait = await this.#agent.getAuthorFeed({actor: "notwaltruff.bsky.social", limit: postNum,}); // Get a defined number + 2 of most recent posts from the logged in user's feed.
     var bskyFeed = bskyFeedAwait["data"]["feed"]; // Filter down the await values so we are only looking at the feeds.
     var bskyFeed0 = bskyFeed[0]; // Select post 0, the most recent post made by this user.
     var bskyPost0 = bskyFeed0["post"]; // Filter down the values of the post so we can look at the params.
@@ -97,7 +97,7 @@ export default class Bot {
         this.rootCid = bskyCid; // Change the root CID to be the most recent post's CID.
       }
     }
-    for (let i = 0; i < postNum; i++) // Consider 2 less posts than were collected. 
+    for (let i = 0; i < postNum; i++) // Consider all collected posts.
     {
       var bskyPost = bskyFeed[i]; // Get the post i from the collected Bluesky feed.
       var bskyRecord = bskyPost["post"]["record"]; // Filter post i down so we are only considering the record.
@@ -165,7 +165,6 @@ export default class Bot {
     await bot.login(bskyAccount); // Log the bot into the specified Bluesky account determined by the bskyAccount value.
     const mastodonAwait = await getPostText(); // Get the desired number of recent Mastodon posts from the specified user in getPostText.
     var mastodonArr = mastodonAwait.split("\/"); // mastodonAwait is a string value that is subdivided by "\/". Turn it into an array of values that we can reason on individually. Clunky implementation but it works without changing getPostText's signature too much. 
-    //console.log(mastodonArr);
     if (!dryRun) // Make sure that we don't wanna run the bot without posting. Tbh, I think I might have broken this feature through my changes to the source code. May need to reimplement dry run as a working option when I generalize the code for other purposes.
     { 
       for (let i = mastodonArr.length - 1; i >= 0; i--) // Iterate over the recent Mastodon posts in reverse sequential order. -1 may not be necessary, do some more testing.
