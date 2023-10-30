@@ -21,15 +21,34 @@ export default async function getPostText()
 	var awaitTweet = await mastodon.getStatuses("109764698354053424", {'limit':limitVal}); //Use the Mastodon API to get a specified number of recent posts from the Mastodon API.
 	var string = JSON.stringify(awaitTweet); // Convert the post into a JSON string.
 	var objJSON = JSON.parse(string)["json"]; // Convert the JSON string back to a JSON object. Kinda silly, but it doesn't work otherwise. 
-	var stringArr = []; // Initialize an empty array that we will store the regexed plaintexts in. 
+	var stringArr = []; // Initialize an empty array that we will store the regexed plaintexts in.
+	var urlArr = [];
 	for (let i = 0; i < limitVal; i++) // Iterate over all the posts we collected using the Mastodon API. 
 	{
+		if (objJSON[i]["media_attachments"][0] != undefined)
+		{
+			if (objJSON[i]["media_attachments"][0]["type"] == "image")
+			{
+				urlArr.push(objJSON[i]["media_attachments"][0]["url"]);
+			}
+			else
+			{
+				urlArr.push("None");
+			}
+		}
+		else
+		{
+			urlArr.push("None");
+		}
 		var contentJSON = objJSON[i]["content"]; // Filter through all the values of the JSON object, to get just the content of post i. 
 		var contentString = JSON.stringify(contentJSON); // Convert the content of the post into a JSON string.
 		contentString = contentString.slice(1,-1); // Remove the quotation marks.
 		contentString = contentString.replace(quoteReg, `"`).replace(andReg, "&").replace(pReg, "\n\n").replace(brReg, "\n").replace(tagReg, ""); //Use the ", &, <p>, and <br> regexes to apply appropriate formatting. Then use the general regex to remove the HTML formatting from the mastodon post. 
 		stringArr.push(contentString); // Add the regexed content to the array of plaintexts.
 	}
-	var finalString = stringArr.join("\/"); // Turn the string array into a single string by joining them with a \/ delimiter. This will be undone when used by bot functions. 
-	return finalString; // Return this singular concatenated string. 
+	var urls = urlArr.join("@#%");
+	var strings = stringArr.join("@#%"); // Turn the string array into a single string by joining them with a \/ delimiter. This will be undone when used by bot functions. 
+	var urlsAndStringsArr = [urls, strings];
+	var urlsAndStrings = urlsAndStringsArr.join("~~~");
+	return urlsAndStrings; // Return this singular concatenated string. 
 }
