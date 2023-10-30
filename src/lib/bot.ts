@@ -82,8 +82,11 @@ export default class Bot {
     {
       const response = await axios.get(url, { responseType: 'arraybuffer' })
       const buffer = Buffer.from(response.data, "utf-8")
-      const testUpload = await this.#agent.uploadBlob(buffer, {encoding: "image/png"});
-      img = {images: [{image: testUpload["data"]["blob"], alt: "",},], $type: "app.bsky.embed.images",};
+      if (buffer.length <= 1000000)
+      {
+        const testUpload = await this.#agent.uploadBlob(buffer, {encoding: "image/png"});
+        img = {images: [{image: testUpload["data"]["blob"], alt: "",},], $type: "app.bsky.embed.images",};
+      }
     }
 
     var postNum = 20; // Specify the number of recent posts to compare from the logged in user's feed.
