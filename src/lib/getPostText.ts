@@ -12,7 +12,7 @@ const mastodon = new Mastodon.API({access_token: 'PRZhmwmS5fpkXo442UE8SGHv8TL7XO
 */
 export default async function getPostText() 
 {
-	const limitVal = 10; // The number of posts to get from Mastodon.
+	const limitVal = 15; // The number of posts to get from Mastodon.
 	var pReg = new RegExp("</p><p>", "g"); // A regex to deal with <p></p>. This should create a new section in the text, which we do via 2 line breaks.
 	var brReg = new RegExp("<br>", "g"); // A regex to deal with <br>. This should go to the next line, which we do via a line break. 
 	var quoteReg = new RegExp(`\\\\"`, "g"); // A regex to deal with \". This should be replaced with a " value with no \.
@@ -24,6 +24,7 @@ export default async function getPostText()
 	var objJSON = JSON.parse(string)["json"]; // Convert the JSON string back to a JSON object. Kinda silly, but it doesn't work otherwise. 
 	var stringArr = []; // Initialize an empty array that we will store the regexed plaintexts in.
 	var urlArr = [];
+	var altTextArr = [];
 	for (let i = 0; i < limitVal; i++) // Iterate over all the posts we collected using the Mastodon API. 
 	{
 		if (objJSON[i]["media_attachments"][0] != undefined)
@@ -32,14 +33,28 @@ export default async function getPostText()
 			{
 				urlArr.push(objJSON[i]["media_attachments"][0]["url"]);
 			}
+			else if (objJSON[i]["media_attachments"][0]["type"] == "gifv" || objJSON[i]["media_attachments"][0]["type"] == "video")
+			{
+				urlArr.push(objJSON[i]["media_attachments"][0]["preview_url"]);
+			}
 			else
 			{
 				urlArr.push("None");
+			}
+
+			if (objJSON[i]["media_attachments"][0]["description"] == null)
+			{
+				altTextArr.push("None");
+			}
+			else
+			{
+				altTextArr.push(objJSON[i]["media_attachments"][0]["description"])
 			}
 		}
 		else
 		{
 			urlArr.push("None");
+			altTextArr.push("None");
 		}
 		var contentJSON = objJSON[i]["content"]; // Filter through all the values of the JSON object, to get just the content of post i. 
 		var contentString = JSON.stringify(contentJSON); // Convert the content of the post into a JSON string.
@@ -49,7 +64,8 @@ export default async function getPostText()
 	}
 	var urls = urlArr.join("@#%");
 	var strings = stringArr.join("@#%"); // Turn the string array into a single string by joining them with a \/ delimiter. This will be undone when used by bot functions. 
-	var urlsAndStringsArr = [urls, strings];
-	var urlsAndStrings = urlsAndStringsArr.join("~~~");
-	return urlsAndStrings; // Return this singular concatenated string. 
+	var alts = altTextArr.join("@#%"); 
+	var urlsStringsAltsArr = [urls, strings, alts];
+	var urlsStringsAlts = urlsStringsAltsArr.join("~~~");
+	return urlsStringsAlts; // Return this singular concatenated string. 
 }
