@@ -111,7 +111,7 @@ export default class Bot {
         this.rootCid = bskyCid; // Change the root CID to be the most recent post's CID.
       }
     }
-    for (let i = 0; i < postNum; i++) // Consider all collected posts.
+    for (let i = 0; i < bskyFeed.length; i++) // Consider all collected posts.
     {
       var bskyPost = bskyFeed[i]; // Get the post i from the collected Bluesky feed.
       var bskyRecord = bskyPost["post"]["record"]; // Filter post i down so we are only considering the record.
