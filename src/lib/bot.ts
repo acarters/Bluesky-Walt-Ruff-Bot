@@ -72,27 +72,72 @@ export default class Bot
   */
   async post
   (
-    isReply: boolean, url: string, alt: string, text:
+    isReply: boolean, url: string, alt: string, card: string, text:
       | string
       | (Partial<AppBskyFeedPost.Record> &
           Omit<AppBskyFeedPost.Record, "createdAt">)
   ) 
   {
     var img;
-    if (url != "None")
+    var urls = url.split("!^&"); // Parse the string of concatenated urls into an array of individual urls.
+    var alts = alt.split("!^&"); // Parse the string of concatenated alt text values into an array of individual alt text values.
+    var cards = card.split("!^&"); // Parse the string of concatenated link card links into an array of individual link card links.
+    var cardEmbed; // Create a variable to store the link card embed object.
+
+    if (card != "None" && urls[0] == "None") // Check if there is a link card, and there's not at least one url. This might be implemented incorrectly.
     {
-      const response = await axios.get(url, { responseType: 'arraybuffer' })
-      const buffer = Buffer.from(response.data, "utf-8")
-      if (buffer.length <= 1000000)
+      var cardBuffer; 
+      if (cards[3] != "None")
       {
-        const testUpload = await this.#agent.uploadBlob(buffer, {encoding: "image/png"});
-        img = {images: [{image: testUpload["data"]["blob"], alt: "",},], $type: "app.bsky.embed.images",};
-        if (alt != "None")
+        var cardResponse = await axios.get(cards[3], { responseType: 'arraybuffer'});
+        cardBuffer = Buffer.from(cardResponse.data, "utf-8");
+      }
+        if ((cardBuffer != undefined && cardBuffer.length > 1000000) || cards[3] == "None")
         {
-          img["images"][0]["alt"] = alt;
+          console.log("file too big or no image supplied");
+          var cardResponse = await axios.get("https://www.sportsnet.ca/wp-content/uploads/2020/03/1704050871_6140634293001_6140631802001-vs.jpg", { responseType: 'arraybuffer'}); 
+          cardBuffer = Buffer.from(cardResponse.data, "utf-8");
+        }
+        const cardUpload = await this.#agent.uploadBlob(cardBuffer, {encoding: "image/png"});
+        var cardObj = {"uri": cards[0], "title": cards[1], "description": cards[2], "thumb": cardUpload["data"]["blob"],};
+        cardEmbed = {"$type": "app.bsky.embed.external", "external": cardObj};
+    }
+
+
+    for (var i = 0; i < 4; i++)
+    {
+      if (urls[i] != "None")
+      {
+        console.log("urls["+ i + "] != None");
+        var response = await axios.get(urls[i], { responseType: 'arraybuffer'});
+        var buffer = Buffer.from(response.data, "utf-8");
+        if (buffer.length <= 1000000)
+        {
+          const upload = await this.#agent.uploadBlob(buffer, {encoding: "image/png"});
+          if (img == undefined)
+          {
+            if (alts[i] != "None")
+            {
+              img = {images: [{image: upload["data"]["blob"], alt: alts[i],},], $type: "app.bsky.embed.images",};
+            }
+            else
+            {
+              img = {images: [{image: upload["data"]["blob"], alt: "",},], $type: "app.bsky.embed.images",};
+            }
+          }
+          else 
+          {
+            if (alts[i] != "None")
+            {
+              img["images"].push({image: upload["data"]["blob"], alt: alts[i],});
+            }
+            else
+            {
+              img["images"].push({image: upload["data"]["blob"], alt: "",});
+            }
+          }
         }
       }
-      console.log(img);
     }
 
     var postNum = 20; // Specify the number of recent posts to compare from the logged in user's feed.
@@ -122,8 +167,6 @@ export default class Bot
       var bskyPost = bskyFeed[i]; // Get the post i from the collected Bluesky feed.
       var bskyRecord = bskyPost["post"]["record"]; // Filter post i down so we are only considering the record.
       var bskyText = Object.entries(bskyRecord)[0][1]; // Accessing the values from here is weird, so I put them all in an array and access the one corresponding to text (0,1).
-      console.log(text);
-      console.log(bskyText);
       if (text === bskyText || text === "") // Check if the text we are trying to post has already been posted in the last postNum posts, or is empty. Might change empty conditional if I get images working.  
       {
         console.log("failed on case " + i);
@@ -138,7 +181,7 @@ export default class Bot
       if (isReply == true) // If we are trying to post a reply
       {
         var rootId = {uri: this.rootUri, cid: this.rootCid}; // Format the root URI and root CID from the public object variables into a form that can be used.
-        if (url != "None")
+        if (urls[0] != "None")
         {
           record = 
           {
@@ -147,6 +190,16 @@ export default class Bot
             reply: {root: rootId, parent: parentId,}, // Specify the reply details. Make the root the values from our public root variables, make the parent the ID values collected from this function (the ones from the most recent post)
             embed: img,
           };
+        }
+        else if (card != "None")
+        {
+          record = 
+          {
+            text: richText.text, // Specify the text of our post as the text in the RichText obj (should be our plaintext string)
+            facets: richText.facets, // Specify the facets of our post to be the facets of the RichText.
+            reply: {root: rootId, parent: parentId,}, // Specify the reply details. Make the root the values from our public root variables, make the parent the ID values collected from this function (the ones from the most recent post)
+            embed: cardEmbed,
+          }; 
         }
         else
         {
@@ -160,13 +213,22 @@ export default class Bot
       }
       else // If we are trying to post a root post
       {
-        if (url != "None")
+        if (urls[0] != "None")
         {
           record = 
           {
             text: richText.text, // Specify the text of our post as the text in the RichText obj (should be our plaintext string)
             facets: richText.facets, // Specify the facets of our post to be the facets of the RichText.
             embed: img,
+          };
+        }
+        else if (card != "None")
+        {
+          record = 
+          {
+            text: richText.text, // Specify the text of our post as the text in the RichText obj (should be our plaintext string)
+            facets: richText.facets, // Specify the facets of our post to be the facets of the RichText.
+            embed: cardEmbed,
           };
         }
         else
@@ -209,11 +271,11 @@ export default class Bot
     await bot.login(bskyAccount); // Log the bot into the specified Bluesky account determined by the bskyAccount value.
     const mastodonAwait = await getPostText(); // Get the desired number of recent Mastodon posts from the specified user in getPostText.
 
-    var urlsStringsAltsArr = mastodonAwait.split("~~~");
-    var mastUrlArr = urlsStringsAltsArr[0].split("@#%");
-    var mastodonArr = urlsStringsAltsArr[1].split("@#%");
-    var mastAltArr = urlsStringsAltsArr[2].split("@#%");
-    console.log(mastAltArr);
+    var  urlsStringsAltsCardsArr = mastodonAwait.split("~~~");
+    var mastUrlArr =  urlsStringsAltsCardsArr[0].split("@#%");
+    var mastodonArr =  urlsStringsAltsCardsArr[1].split("@#%");
+    var mastAltArr =  urlsStringsAltsCardsArr[2].split("@#%");
+    var mastCardArr = urlsStringsAltsCardsArr[3].split("@#%");
 
     if (!dryRun) // Make sure that we don't wanna run the bot without posting. Tbh, I think I might have broken this feature through my changes to the source code. May need to reimplement dry run as a working option when I generalize the code for other purposes.
     { 
@@ -221,7 +283,7 @@ export default class Bot
       {
         if (mastodonArr[i].length <= 300) // Simple case, where a post is 300 characters or less, within the length bounds of a Bluesky post.
         {
-          await bot.post(false, mastUrlArr[i], mastAltArr[i], mastodonArr[i]); // Run bot.post on this text value, posting to Bluesky if the text is new. Post this as a root value. // Run bot.post on this text value, posting to Bluesky if the text is new. Post this as a root value.
+          await bot.post(false, mastUrlArr[i], mastAltArr[i], mastCardArr[i], mastodonArr[i]); // Run bot.post on this text value, posting to Bluesky if the text is new. Post this as a root value. // Run bot.post on this text value, posting to Bluesky if the text is new. Post this as a root value.
         }
         else // Complicated case where a post is longer than 300 characters, longer than a valid Bluesky post. 
         {
@@ -250,12 +312,12 @@ export default class Bot
           var isReply = false; // Create a boolean value to determine if we want to post a root post or a reply. Start with a root post. 
           for (var j = 0; j < threadArr.length; j++) // Iterate over all of the chunk strings contained in the thread array.
           {
-            await bot.post(isReply, mastUrlArr[i], mastAltArr[i], threadArr[j] + " [" + (j+1) + "/" + threadArr.length + "]"); // Post string j in the thread array. Use the boolean variable to determine whether this is a root post or a reply, add a post counter on the end to make the thread easier to read. 
+            await bot.post(isReply, mastUrlArr[i], mastAltArr[i], mastCardArr[i], threadArr[j] + " [" + (j+1) + "/" + threadArr.length + "]"); // Post string j in the thread array. Use the boolean variable to determine whether this is a root post or a reply, add a post counter on the end to make the thread easier to read. 
             if (isReply == false) // If this post was posted as a root, meaning that this is the first iteration:
             {
               isReply = true; // Set the boolean value to post as replies for the remaining iterations.
-              mastUrlArr[i] = "None";
-              mastAltArr[i] = "None";
+              mastUrlArr[i] = "None!^&None!^&None!^&None";
+              mastAltArr[i] = "None!^&None!^&None!^&None";
             }
           }
         }

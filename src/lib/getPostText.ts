@@ -21,6 +21,7 @@ export default async function getPostText()
 	var twitterReg = new RegExp("@twitter.com", "g"); // A regex to deal with @twitter.com. Should be deleted.
 	var canesReg = new RegExp("@Canes@sportsbots.xyz", "g"); // A regex to deal with Canes's @. Should be replaced with the bot's @.
 	var sportsBotsReg = new RegExp("@sportsbots.xyz", "g");
+	var invalidLinkReg = new RegExp("\\S*(\\.com|\\.ca|\\.org|\\.net)\\S*(…|\\.\\.\\.)", "g");
 	var logoReg = new RegExp("&nbsp;", "g"); // A regex to deal with &nbsp;. Should be deleted.
 	var awaitTweet = await mastodon.getStatuses("109764698354053424", {'limit':limitVal}); //Use the Mastodon API to get a specified number of recent posts from the Mastodon API.
 	var string = JSON.stringify(awaitTweet); // Convert the post into a JSON string.
@@ -28,55 +29,113 @@ export default async function getPostText()
 	var stringArr = []; // Initialize an empty array that we will store the regexed plaintexts in.
 	var urlArr = [];
 	var altTextArr = [];
+	var cardArr = [];
 	for (let i = 0; i < limitVal; i++) // Iterate over all the posts we collected using the Mastodon API. 
 	{
-		if (objJSON[i]["media_attachments"][0] != undefined)
-		{
-			if (objJSON[i]["media_attachments"][0]["type"] == "image")
+		var postUrlArr = [];
+		var postAltTextArr = [];
+		for (let j = 0; j < 4; j++)
+		{	
+			if (objJSON[i]["media_attachments"][j] != undefined)
 			{
-				urlArr.push(objJSON[i]["media_attachments"][0]["url"]);
-			}
-			else if (objJSON[i]["media_attachments"][0]["type"] == "gifv" || objJSON[i]["media_attachments"][0]["type"] == "video")
-			{
-				urlArr.push(objJSON[i]["media_attachments"][0]["preview_url"]);
-			}
-			else
-			{
-				urlArr.push("None");
-			}
+				if (objJSON[i]["media_attachments"][j]["type"] == "image")
+				{
+					postUrlArr.push(objJSON[i]["media_attachments"][j]["url"]);
+				}
+				else if (objJSON[i]["media_attachments"][j]["type"] == "gifv" || objJSON[i]["media_attachments"][j]["type"] == "video")
+				{
+					postUrlArr.push(objJSON[i]["media_attachments"][j]["preview_url"]);
+				}
+				else
+				{
+					postUrlArr.push("None");
+				}
 
-			if (objJSON[i]["media_attachments"][0]["type"] == "gifv")
-			{
-				altTextArr.push("This is a thumbnail from an animated GIF on Twitter, because Bluesky does not currently have GIF support.")
-			}
-			else if (objJSON[i]["media_attachments"][0]["type"] == "video")
-			{
-				altTextArr.push("This is a thumbnail from a video on Twitter, because Bluesky does not currently have video support.")
-			}
-			else if (objJSON[i]["media_attachments"][0]["description"] == null)
-			{
-				altTextArr.push("None");
+				if (objJSON[i]["media_attachments"][j]["type"] == "gifv")
+				{
+					postAltTextArr.push("This is a thumbnail from an animated GIF on Twitter, because Bluesky does not currently have GIF support.")
+				}
+				else if (objJSON[i]["media_attachments"][j]["type"] == "video")
+				{
+					postAltTextArr.push("This is a thumbnail from a video on Twitter, because Bluesky does not currently have video support.")
+				}
+				else if (objJSON[i]["media_attachments"][j]["description"] == null)
+				{
+					postAltTextArr.push("None");
+				}
+				else
+				{
+					postAltTextArr.push(objJSON[i]["media_attachments"][j]["description"]);
+				}
 			}
 			else
 			{
-				altTextArr.push(objJSON[i]["media_attachments"][0]["description"]);
+				postUrlArr.push("None");
+				postAltTextArr.push("None");
 			}
 		}
-		else
-		{
-			urlArr.push("None");
-			altTextArr.push("None");
-		}
+		var postUrl = postUrlArr.join("!^&");
+		var postAltText = postAltTextArr.join("!^&");
+		urlArr.push(postUrl);
+		altTextArr.push(postAltText);
+
 		var contentJSON = objJSON[i]["content"]; // Filter through all the values of the JSON object, to get just the content of post i. 
 		var contentString = JSON.stringify(contentJSON); // Convert the content of the post into a JSON string.
 		contentString = contentString.slice(1,-1); // Remove the quotation marks.
 		contentString = contentString.replace(logoReg, "").replace(twitterReg, "").replace(canesReg, "notcanes.bsky.social").replace(sportsBotsReg, "").replace(quoteReg, `"`).replace(andReg, "&").replace(pReg, "\n\n").replace(brReg, "\n").replace(tagReg, ""); //Use the ", &, <p>, and <br> regexes to apply appropriate formatting. Then use the general regex to remove the HTML formatting from the mastodon post. 
+
+		if (objJSON[i]["card"] != null)
+		{
+			contentString = contentString.replace(invalidLinkReg, objJSON[i]["card"]["url"]);
+			var postCardArr = [];
+			if (objJSON[i]["card"]["url"] != null)
+			{
+				postCardArr.push(objJSON[i]["card"]["url"]);
+			}
+			else
+			{
+				postCardArr.push("None");
+			}
+			if (objJSON[i]["card"]["title"] != null)
+			{
+				postCardArr.push(objJSON[i]["card"]["title"]);
+			}
+			else
+			{
+				postCardArr.push("None");
+			}
+			if (objJSON[i]["card"]["description"] != null)
+			{
+				postCardArr.push(objJSON[i]["card"]["description"]);
+			}
+			else
+			{
+				postCardArr.push("None");
+			}
+			if (objJSON[i]["card"]["image"] != null)
+			{
+				postCardArr.push(objJSON[i]["card"]["image"]);
+			}
+			else
+			{
+				postCardArr.push("None");
+			}
+			console.log("postCardArr: " + postCardArr);
+			var postCard = postCardArr.join("!^&");
+			cardArr.push(postCard);
+		}
+		else
+		{
+			cardArr.push("None");
+		}
+
 		stringArr.push(contentString); // Add the regexed content to the array of plaintexts.
 	}
 	var urls = urlArr.join("@#%");
 	var strings = stringArr.join("@#%"); // Turn the string array into a single string by joining them with a \/ delimiter. This will be undone when used by bot functions. 
 	var alts = altTextArr.join("@#%"); 
-	var urlsStringsAltsArr = [urls, strings, alts];
-	var urlsStringsAlts = urlsStringsAltsArr.join("~~~");
-	return urlsStringsAlts; // Return this singular concatenated string. 
+	var cards = cardArr.join("@#%");
+	var urlsStringsAltsCardsArr = [urls, strings, alts, cards];
+	var urlsStringsAltsCards = urlsStringsAltsCardsArr.join("~~~");
+	return urlsStringsAltsCards; // Return this singular concatenated string. 
 }
