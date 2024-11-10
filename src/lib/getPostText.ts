@@ -17,12 +17,14 @@ export default async function getPostText()
 	var brReg = new RegExp("<br>", "g"); // A regex to deal with <br>. This should go to the next line, which we do via a line break. 
 	var quoteReg = new RegExp(`\\\\"`, "g"); // A regex to deal with \". This should be replaced with a " value with no \.
 	var andReg = new RegExp("&amp;", "g"); // A regex to deal with &amp;. This should be replaced with &.
-	var tagReg = new RegExp("<(:?[^>]+)>", "g"); // A general regex for HTML. Used to get the plaintext value of the mastodon post without tag notation.
-	var twitterReg = new RegExp("@twitter.com", "g"); // A regex to deal with @twitter.com. Should be deleted.
-	var canesReg = new RegExp("@Canes@sportsbots.xyz", "g"); // A regex to deal with Canes's @. Should be replaced with the bot's @.
-	var sportsBotsReg = new RegExp("@sportsbots.xyz", "g");
-	var invalidLinkReg = new RegExp("\\S*(\\.com|\\.ca|\\.org|\\.net)\\S*(…|\\.\\.\\.)", "g");
 	var logoReg = new RegExp("&nbsp;", "g"); // A regex to deal with &nbsp;. Should be deleted.
+	var twitterReg = new RegExp("@twitter.com", "g"); // A regex to deal with @twitter.com. Should be deleted.
+	var sportsBotsReg = new RegExp("@sportsbots.xyz", "g");
+	var waltRuffReg = new RegExp("@WaltRuff@sportsbots.xyz", "g"); // A regex to deal with Walt Ruff's @. Should be replaced with the bot's @.
+	var sportsBotsReg = new RegExp("@sportsbots.xyz", "g");
+	var tagReg = new RegExp("<(:?[^>]+)>", "g"); // A general regex for HTML. Used to get the plaintext value of the mastodon post without tag notation.
+	var invalidLinkReg = new RegExp("\\S*(\\.com|\\.ca|\\.org|\\.net)\\S*(…|\\.\\.\\.)", "g");
+
 	var awaitTweet = await mastodon.getStatuses("109764698354053424", {'limit':limitVal}); //Use the Mastodon API to get a specified number of recent posts from the Mastodon API.
 	var string = JSON.stringify(awaitTweet); // Convert the post into a JSON string.
 	var objJSON = JSON.parse(string)["json"]; // Convert the JSON string back to a JSON object. Kinda silly, but it doesn't work otherwise. 
@@ -38,26 +40,18 @@ export default async function getPostText()
 		{	
 			if (objJSON[i]["media_attachments"][j] != undefined)
 			{
-				if (objJSON[i]["media_attachments"][j]["type"] == "image")
+				if (objJSON[i]["media_attachments"][j]["type"] == "image" || objJSON[i]["media_attachments"][j]["type"] == "gifv" || objJSON[i]["media_attachments"][j]["type"] == "video")
 				{
 					postUrlArr.push(objJSON[i]["media_attachments"][j]["url"]);
-				}
-				else if (objJSON[i]["media_attachments"][j]["type"] == "gifv" || objJSON[i]["media_attachments"][j]["type"] == "video")
-				{
-					postUrlArr.push(objJSON[i]["media_attachments"][j]["preview_url"]);
 				}
 				else
 				{
 					postUrlArr.push("None");
 				}
 
-				if (objJSON[i]["media_attachments"][j]["type"] == "gifv")
+				if (objJSON[i]["media_attachments"][j]["type"] == "video" || objJSON[i]["media_attachments"][j]["type"] == "gifv")
 				{
-					postAltTextArr.push("This is a thumbnail from an animated GIF on Twitter, because Bluesky does not currently have GIF support.")
-				}
-				else if (objJSON[i]["media_attachments"][j]["type"] == "video")
-				{
-					postAltTextArr.push("This is a thumbnail from a video on Twitter, because Bluesky does not currently have video support.")
+					postAltTextArr.push(`${objJSON[i]["media_attachments"][j]["meta"]["original"]["width"]}@#*${objJSON[i]["media_attachments"][j]["meta"]["original"]["height"]}@#*${objJSON[i]["media_attachments"][j]["meta"]["original"]["duration"]}@#*${objJSON[i]["media_attachments"][j]["preview_url"]}`);
 				}
 				else if (objJSON[i]["media_attachments"][j]["description"] == null)
 				{
@@ -78,49 +72,24 @@ export default async function getPostText()
 		var postAltText = postAltTextArr.join("!^&");
 		urlArr.push(postUrl);
 		altTextArr.push(postAltText);
-
 		var contentJSON = objJSON[i]["content"]; // Filter through all the values of the JSON object, to get just the content of post i. 
 		var contentString = JSON.stringify(contentJSON); // Convert the content of the post into a JSON string.
 		contentString = contentString.slice(1,-1); // Remove the quotation marks.
-		contentString = contentString.replace(logoReg, "").replace(twitterReg, "").replace(canesReg, "notcanes.bsky.social").replace(sportsBotsReg, "").replace(quoteReg, `"`).replace(andReg, "&").replace(pReg, "\n\n").replace(brReg, "\n").replace(tagReg, ""); //Use the ", &, <p>, and <br> regexes to apply appropriate formatting. Then use the general regex to remove the HTML formatting from the mastodon post. 
+		contentString = contentString.replace(twitterReg, "").replace(waltRuffReg, "notwaltruff.bsky.social").replace(sportsBotsReg, "").replace(logoReg, "").replace(quoteReg, `"`).replace(andReg, "&").replace(pReg, "\n\n").replace(brReg, "\n").replace(tagReg, ""); //Use the ", &, <p>, and <br> regexes to apply appropriate formatting. Then use the general regex to remove the HTML formatting from the mastodon post. 
+
+		if (contentString.includes("GreatClips") || contentString.includes("HarrisTeeter") || contentString.includes("RT ") || contentString.includes("Retweet ") || contentString.includes("retweet ") || contentString.includes("RETWEET "))
+		{
+			contentString = contentString + "\n\n (Offer not valid on Bluesky.)";
+		}
 
 		if (objJSON[i]["card"] != null)
 		{
 			contentString = contentString.replace(invalidLinkReg, objJSON[i]["card"]["url"]);
 			var postCardArr = [];
-			if (objJSON[i]["card"]["url"] != null)
-			{
-				postCardArr.push(objJSON[i]["card"]["url"]);
-			}
-			else
-			{
-				postCardArr.push("None");
-			}
-			if (objJSON[i]["card"]["title"] != null)
-			{
-				postCardArr.push(objJSON[i]["card"]["title"]);
-			}
-			else
-			{
-				postCardArr.push("None");
-			}
-			if (objJSON[i]["card"]["description"] != null)
-			{
-				postCardArr.push(objJSON[i]["card"]["description"]);
-			}
-			else
-			{
-				postCardArr.push("None");
-			}
-			if (objJSON[i]["card"]["image"] != null)
-			{
-				postCardArr.push(objJSON[i]["card"]["image"]);
-			}
-			else
-			{
-				postCardArr.push("None");
-			}
-			console.log("postCardArr: " + postCardArr);
+			postCardArr.push(objJSON[i]["card"]["url"]);
+			postCardArr.push(objJSON[i]["card"]["title"]);
+			postCardArr.push(objJSON[i]["card"]["description"]);
+			postCardArr.push(objJSON[i]["card"]["image"]);
 			var postCard = postCardArr.join("!^&");
 			cardArr.push(postCard);
 		}
@@ -128,9 +97,11 @@ export default async function getPostText()
 		{
 			cardArr.push("None");
 		}
-
 		stringArr.push(contentString); // Add the regexed content to the array of plaintexts.
 	}
+	//urlArr[27] = "None!^&None!^&None!^&None";
+	//altTextArr[27] = "None!^&None!^&None!^&None";
+
 	var urls = urlArr.join("@#%");
 	var strings = stringArr.join("@#%"); // Turn the string array into a single string by joining them with a \/ delimiter. This will be undone when used by bot functions. 
 	var alts = altTextArr.join("@#%"); 
